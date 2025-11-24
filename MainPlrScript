@@ -1,0 +1,89 @@
+--StarterPlayer -> StarterPlayerScripts, "MainPlrScript"
+
+local RS = game:GetService("ReplicatedStorage")
+local CashRetreiver = RS:WaitForChild("CashRetreiver")
+local SendVals = RS:WaitForChild("SendVals")
+local DebrisLaunch = RS:WaitForChild("DebrisLaunch")
+
+local CashTable = {}
+
+local function BallValChecker() --Gets the player's money in balls and sends it.
+	while true do
+		local TotalVal = 0
+		for i, v in	pairs(game.Workspace.Balls:GetChildren()) do
+			if v:IsA("Part") then
+				local Value = v:FindFirstChildOfClass("IntValue", true)
+				if Value then
+					TotalVal += Value.Name
+				end
+			end
+		end
+		SendVals:FireServer(TotalVal)
+		task.wait(0.05)
+	end
+end
+
+task.spawn(BallValChecker)
+
+local RS = game:GetService("ReplicatedStorage")
+local GiveCash = RS:WaitForChild("GiveCash")
+
+local function BallMultiplier()
+	--When the ball touches a multiplier it sends the ball's value and multiplier's value to the server.
+	while true do
+		for i, v in pairs(game.Workspace.Balls:GetChildren()) do
+			if v:HasTag("Ball") then
+				local PartToCheck = nil
+				if v:IsA("BasePart") then
+					--print("aaaa")
+					PartToCheck = v
+				else 
+					--print("aaaa")
+					PartToCheck = v:FindFirstChildOfClass("BasePart") or v:FindFirstChildOfClass("UnionOperation")
+				end
+				--print(PartToCheck)
+				if PartToCheck ~= nil then
+					local TObj = workspace:GetPartsInPart(PartToCheck)
+					for o, b in pairs(TObj) do
+						if b:HasTag("MultiplierBlock") then
+							local Multiplier = b.Name
+							local Value
+							if v:FindFirstChildOfClass("IntValue") then
+								Value = v:FindFirstChildOfClass("IntValue").Name
+								v:Destroy()
+								GiveCash:FireServer(Multiplier, Value)
+							end
+						end
+					end
+				end
+			end
+		end
+		task.wait()
+	end
+	task.wait(1)
+end
+
+task.spawn(BallMultiplier)
+
+local function BallTimeChecker()
+	--Checks if a ball has been in the workspace for too long, and if yes then makes it disappear and refund's the price.
+	--Made to dodge potential ball's getting stuck issues
+	while true do
+		for i, v in pairs(workspace.Balls:GetChildren()) do
+			if v:IsA("Part") then
+				local StrVal = v:FindFirstChildOfClass("StringValue")
+				local IntVal = v:FindFirstChildOfClass("IntValue")
+
+				if tonumber(StrVal.Name) >= 10 then
+					v:Destroy()
+					DebrisLaunch:FireServer(tonumber(IntVal.Name))
+				else 
+					StrVal.Name += 1
+				end
+			end
+		end
+		task.wait(1)
+	end
+end
+
+task.spawn(BallTimeChecker)
