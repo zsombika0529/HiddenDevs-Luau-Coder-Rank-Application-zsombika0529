@@ -1,0 +1,281 @@
+--Server Script Service, "MainScript"
+
+local RS = game:GetService("ReplicatedStorage")
+local GiveCash = RS:WaitForChild("GiveCash")
+local CashRetreiver = RS:WaitForChild("CashRetreiver")
+local SendVals = RS:WaitForChild("SendVals")
+local CashDrop = RS:WaitForChild("CashDrop")
+local DebrisLaunch = RS:WaitForChild("DebrisLaunch")
+local CostDisplayer = RS:WaitForChild("CostDisplayer")
+local Rebirthed = RS:WaitForChild("Rebirthed")
+local PlayerAdded = RS:WaitForChild("PlayerAdded") --LoadingScreen
+local PaymentChecker = RS:WaitForChild("PaymentChecker")
+local PurchaseSuccessful = RS:WaitForChild("PurchaseSuccessful")
+
+local Pay = 2500
+
+local Running = false
+
+local HeadUIs = RS:WaitForChild("HeadUIs")
+local HeadRankUIs = RS:WaitForChild("HeadRankUIs")
+local GroupID = 9048365
+
+local function UpdateValue() --Updates Players' Money On The Leaderboard (Only For Display Purposes).
+	while true do
+		for i, v in pairs(game.Players:GetPlayers()) do
+			local leaderstats = v:FindFirstChild("leaderstats", true)
+			local CashStr = leaderstats:FindFirstChildOfClass("StringValue", true)
+			local CashInt = v:FindFirstChildOfClass("IntValue", true)
+
+			local cash = tonumber(CashInt.Name)
+
+			if cash >= 1e3 and cash < 1e6 then
+				CashStr.Value = math.floor(cash / 1e3).."K"
+			elseif cash >= 1e6 and cash < 1e9 then
+				CashStr.Value = math.floor(cash / 1e6).."M"
+			elseif cash >= 1e9 and cash < 1e12 then
+				CashStr.Value = math.floor(cash / 1e9).."B"
+			elseif cash >= 1e12 and cash < 1e15 then
+				CashStr.Value = math.floor(cash / 1e12).."T"
+			elseif cash >= 1e15 and cash < 1e18 then
+				CashStr.Value = math.floor(cash / 1e15).."Q"
+			elseif cash >= 1e18 and cash < 1e21 then
+				CashStr.Value = math.floor(cash / 1e18).."Qu"
+			elseif cash >= 1e21 and cash < 1e24 then
+				CashStr.Value = math.floor(cash / 1e21).."Sx"
+			elseif cash >= 1e24 and cash < 1e27 then
+				CashStr.Value = math.floor(cash / 1e24).."Se"
+			elseif cash >= 1e27 and cash < 1e30 then
+				CashStr.Value = math.floor(cash / 1e27).." Oct"
+			elseif cash >= 1e30 and cash < 1e33 then
+				CashStr.Value = math.floor(cash / 1e30).."Non"
+			elseif cash >= 1e33 and cash < 1e36 then
+				CashStr.Value = math.floor(cash / 1e33).."Dec"
+			elseif cash >= 1e36 and cash < 1e39 then
+				CashStr.Value = math.floor(cash / 1e36).."Und"
+			elseif cash >= 1e39 and cash < 1e42 then
+				CashStr.Value = math.floor(cash / 1e39).."Duo"
+			elseif cash >= 1e42 and cash < 1e45 then
+				CashStr.Value = math.floor(cash / 1e42).."Tre"
+			elseif cash >= 1e45 and cash < 1e48 then
+				CashStr.Value = math.floor(cash / 1e45).."Quat"
+			elseif cash >= 1e48 and cash < 1e51 then
+				CashStr.Value = math.floor(cash / 1e48).."Qui"
+			elseif cash >= 1e51 and cash < 1e54 then
+				CashStr.Value = math.floor(cash / 1e51).."Sxd"
+			else
+				CashStr.Value = math.floor(cash)
+			end
+		end
+		task.wait(0.01)
+	end
+end
+
+task.spawn(UpdateValue)
+
+local function CashCheck(Player, leaderstats, Cost) --Checks the player's money, if has enough then drops the ball.
+	local SelectedSkinName = Player:WaitForChild("Settings"):WaitForChild("SelectedBallSkin").Value
+	local SelectedSkin
+	if workspace:FindFirstChild("BallSkins", true):FindFirstChild(SelectedSkinName, true) then 
+		--Checks for the player's selected skin.
+		SelectedSkin = workspace:WaitForChild("BallSkins"):FindFirstChild(SelectedSkinName, true)
+	else
+		SelectedSkin = workspace:WaitForChild("BallSkins"):FindFirstChild("ClassicGrey", true)
+	end
+	local Cash = Player:FindFirstChildOfClass("IntValue", true)
+	local CashVal = tonumber(Cash.Name)
+	if tonumber(Cash.Name) >= Cost then
+		if Cost * 1.1 >= tonumber(Cash.Name) then
+			Cash.Name -= Cost
+			return true, 1, SelectedSkin
+		else
+			Cash.Name -= Cost
+			return true, 0, SelectedSkin
+		end
+	end
+end
+
+CashDrop.OnServerInvoke = CashCheck
+
+GiveCash.OnServerEvent:Connect(function(Plr, Multiplier, Value) 
+	--Adds money to the player depending on where the ball lands.
+	local Value = Value
+	local Multiplier = Multiplier
+	local TrueValue = Value * Multiplier
+
+	local leaderstats = Plr:FindFirstChild("leaderstats", true)
+	local Cash = Plr:FindFirstChildOfClass("IntValue", true)
+	local Rebirths = leaderstats:FindFirstChild("Rebirths")
+	if Rebirths.Value == 0 then
+		Cash.Name += TrueValue
+	else
+		Cash.Name += TrueValue + (0.05 * Rebirths.Value * TrueValue)
+	end
+end)
+
+DebrisLaunch.OnServerEvent:Connect(function(Plr, Val) --If ball didn't reach destination within the given time.
+	Plr:FindFirstChildOfClass("IntValue", true).Name += Val
+end)
+
+local function RebirthPrices(Plr, Rebirths) --Price of doing a rebirth.
+	local ControlNum = 1e6
+	local Increment = 1e3^Rebirths
+	if Rebirths == 0 then
+		return 1e6
+	else
+		return ControlNum * Increment
+	end
+end
+
+CostDisplayer.OnServerInvoke = RebirthPrices
+
+local function EinHundert(Plr, Cash)
+	for Times = 1, 10, 1 do
+		Cash.Name = 100
+		task.wait()
+	end
+end
+
+local function RebirthRequested(Plr) --Fires upon player requesting a rebirth.
+	local leaderstats = Plr:FindFirstChild("leaderstats")
+	local Cash = Plr:FindFirstChildOfClass("IntValue")
+	local Rebirths = leaderstats:FindFirstChild("Rebirths")
+	local Gems = leaderstats:FindFirstChild("Gems")
+
+	local ControlNum = 1e6
+	local Increment = 1e3^Rebirths.Value
+
+	if Rebirths.Value == 0 then
+		if tonumber(Cash.Name) >= 1e6 then
+			Rebirths.Value += 1
+			Gems.Value += 50
+			Cash.Name = 100
+			task.spawn(EinHundert, Plr, Cash)
+			return true
+		end
+	end
+	if Rebirths.Value > 0 then
+		if tonumber(Cash.Name) >= ControlNum * Increment then
+			Gems.Value += 50 * Rebirths.Value
+			Rebirths.Value += 1
+			Cash.Name = 100
+			task.spawn(EinHundert, Plr, Cash)
+			return true
+		end
+	end
+end
+
+Rebirthed.OnServerInvoke = RebirthRequested
+
+game.Players.PlayerAdded:Connect(function(Plr)
+	PlayerAdded:FireClient(Plr) --Loading Screen!
+end)
+
+local function PaymentTimer() --Gives free cash to the player every 60s.
+	while true do
+		for i, v in pairs(game.Players:GetPlayers()) do
+			local Timer = v.PlayerGui:WaitForChild("Timer", true)
+			local Cash = nil
+			if v:FindFirstChildOfClass("IntValue") then
+				Cash = v:FindFirstChildOfClass("IntValue")
+			end
+			if Cash ~= nil then
+				if Timer.Value <= 0 then
+					Timer.Value = 60
+					Cash.Name += Pay
+					PaymentChecker:FireClient(v, Timer.Value, Pay)
+				else 
+					Timer.Value -= 1
+					PaymentChecker:FireClient(v, Timer.Value, Pay)
+				end
+			end
+		end
+		task.wait(1)
+	end
+end
+
+task.spawn(PaymentTimer)
+
+local function CapReached() --Checks if the player overgoes their allowed cash limit, changes player's money if more.
+	while true do
+		local success, err = pcall(function()
+			for i, v in pairs(game.Players:GetPlayers()) do
+				if v:HasTag("LoadedSuccessfully") then
+					local Cash = nil
+					if v:FindFirstChildOfClass("IntValue") then
+						Cash = v:FindFirstChildOfClass("IntValue")
+					end
+					if Cash ~= nil then
+						local MoneyCap
+						for i, v in pairs(v.PlayerGui:GetChildren()) do
+							if v:IsA("IntValue") and v:HasTag("MC") then
+								MoneyCap = v
+							end
+						end
+						if tonumber(Cash.Name) > tonumber(MoneyCap.Name) then
+							Cash.Name = MoneyCap.Name
+							print("Changed!"..MoneyCap.Name)
+						end
+					end
+				end
+			end
+		end)
+		task.wait(0.01)
+	end
+end
+
+local function MaxCash() --Counterpart of CapReached(starts it too, only activates it once, runs 4ever), checks every 5s.
+	while true do
+		for i, v in pairs(game.Players:GetPlayers()) do
+			if v:HasTag("LoadedSuccessfully") then
+				local Cash = nil
+				if v:FindFirstChildOfClass("IntValue") then
+					Cash = v:FindFirstChildOfClass("IntValue")
+				end
+				if Cash ~= nil then
+					local Rebirths = v:WaitForChild("leaderstats"):WaitForChild("Rebirths").Value
+					local MoneyCap
+					for i, v in pairs(v.PlayerGui:GetChildren()) do
+						if v:IsA("IntValue") and v:HasTag("MC") then
+							MoneyCap = v
+						end
+					end
+					local ActCap = 1e6 * (1000^Rebirths) --ActCap = "Actual Cap".
+					if ActCap == 0 then
+						MoneyCap.Name = 1e6
+					else
+						MoneyCap.Name = ActCap
+					end
+					if Running == false then
+						task.spawn(CapReached)
+						Running = true
+					end
+				end
+			end
+		end
+		task.wait(5)
+	end
+end
+
+task.spawn(MaxCash)
+
+task.spawn(function() --Adds rank and name UI above every player.
+	game.Players.PlayerAdded:Connect(function(Plr)
+		Plr.CharacterAdded:Connect(function(Char)
+			local UIClone = HeadUIs:Clone()
+			UIClone.Parent = Char:WaitForChild("HumanoidRootPart")
+			
+			local Name = UIClone.User
+			Name.Text = Plr.Name
+			
+			local GroupRank = Plr:GetRankInGroup(GroupID)
+			
+			for i, v in pairs(HeadRankUIs:GetChildren()) do
+				if v:HasTag(GroupRank) then
+					local RankClone = v:Clone()
+					RankClone.Parent = UIClone
+				end
+			end
+		end)
+	end)
+end)
